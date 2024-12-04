@@ -1,6 +1,7 @@
 """Get the stuff from AoC"""
 
 import argparse
+import datetime
 import os
 import re
 
@@ -16,6 +17,9 @@ except ImportError:
     BOLD = f"{__ESC__}1m"
     RESET = f"{__ESC__}0m"
     YELLOW = f"{__ESC__}33m"
+
+YEAR = datetime.date.today().year
+DAY = datetime.date.today().day
 
 
 def get_args() -> argparse.Namespace:
@@ -78,7 +82,7 @@ def get_input_data(url: str, session_id: str) -> list[str]:
     cookies = {
         "session": session_id,
     }
-    res = requests.get(f"{url}/input", cookies=cookies)
+    res = requests.get(f"{url}/input", cookies=cookies, timeout=5)
     data = res.content.decode("UTF-8")
 
     return data
@@ -98,7 +102,7 @@ def get_instruction_data(url: str, session_id: str) -> str:
     cookies = {
         "session": session_id,
     }
-    res = requests.get(f"{url}", cookies=cookies).text
+    res = requests.get(f"{url}", cookies=cookies, timeout=5).text
     html_text = BeautifulSoup(res, "html.parser").get_text()
 
     return html_text
@@ -132,7 +136,8 @@ def format_instruction_text(html_text: str) -> str:
         matches = regex.findall(html_text)
         title = matches[0][1]
         for match in matches:
-            html_text = html_text.replace(match[0], f"\n\n--- {match[1]} ---\n")
+            html_text = html_text.replace(
+                match[0], f"\n\n--- {match[1]} ---\n")
 
         # TODO: Prefer to format the html_text directly and not
         # write to, and read back from, a file.
@@ -233,7 +238,8 @@ def make_python_file(day: str, instructions: str) -> None:
         ) as python_file:
             data = python_file.read()
             previous_contents = data.split('"""', 2)
-            output = f"\"\"\"\n{instructions}\"\"\"{''.join(previous_contents[2:])}"
+            output = f"\"\"\"\n{instructions}\"\"\"{
+                ''.join(previous_contents[2:])}"
             python_file.seek(0)
             python_file.truncate(0)
             python_file.write(output)
@@ -254,7 +260,7 @@ def update_readme(title: str) -> None:
     """Update readme
 
     Args:
-        title (str: title extracted from isntruction text.
+        title (str: title extracted from instruction text.
     """
     with open("README.md", "a", encoding="utf-8") as readme_file:
         with open("readme_template.txt", "r", encoding="utf-8") as template:
@@ -264,24 +270,23 @@ def update_readme(title: str) -> None:
 
 def main():
     """Main method"""
-
     args = get_args()
-    aoc_url = f"https://adventofcode.com/2023/day/{args.day}"
+    aoc_url_day = f"https://adventofcode.com/{YEAR}/day/{args.day}"
     session_id = get_session_id()
     title = None
     day = fix_day(args.day)
     try_make_dir(day)
 
     if args.input:
-        input_data = get_input_data(aoc_url, session_id)
+        input_data = get_input_data(aoc_url_day, session_id)
         make_input_file(day, input_data)
     if args.python:
-        instruction_data = get_instruction_data(aoc_url, session_id)
+        instruction_data = get_instruction_data(aoc_url_day, session_id)
         instructions, title = format_instruction_text(instruction_data)
         make_python_file(day, instructions)
     if args.readme:
         if title is None:
-            instruction_data = get_instruction_data(aoc_url, session_id)
+            instruction_data = get_instruction_data(aoc_url_day, session_id)
             instructions, title = format_instruction_text(instruction_data)
         update_readme(title)
 
